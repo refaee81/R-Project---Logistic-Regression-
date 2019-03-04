@@ -1,36 +1,204 @@
-# History files
-.Rhistory
-.Rapp.history
+#########Stage 1: Renaming and Slicing Data#
+library(readxl)
+library(writexl)
+library(boot)
+library(mlogit)#require(mlogit) package
+library(distr)#require(distr) package 
+library(stats)
+library(pscl)#require(pscl) package
+library(ROCR)
 
-# Session Data files
-.RData
+help("pnorm")
 
-# Example code in package build process
-*-Ex.R
+WVS <- read_excel("C:/Users/ramsey/Desktop/Metro College/R/Project/WVS.xlsx")
+names(WVS)
+dim(WVS)
+#[60] "V57: Marital status"
+#[62] "V59: Satisfaction with financial situation of household"
+#[99] "V95: Self positioning in political scale"
+#[166] "V145: How often do you attend religious services"
+#[285] "V228: Which party would you vote for if there were a national election tomorrow"
+#[308] "V239: Scale of incomes"
+#[309] "V240: Sex"
+#[311] "V242: Age"
+#[318] "V247: Language/ethnicity"
+#[319] "V248: Highest educational level attained"
+#[329] "V256: Region where the interview was conducted"#
 
-# Output files from R CMD build
-/*.tar.gz
 
-# Output files from R CMD check
-/*.Rcheck/
+names(WVS) [c(285, 166, 99, 62, 60, 308, 309, 311, 318, 319, 329)]=c("Voting","Religiousity", "Ideology", "Eco_Satisfaction", "Marital", "Income", "Gender","Age","Ethnicity","Education", "Region")
+mydata<-WVS[,c("Voting","Religiousity", "Ideology", "Eco_Satisfaction", "Marital", "Income", "Gender","Age","Ethnicity","Education", "Region")]
+dim(mydata)
 
-# RStudio files
-.Rproj.user/
+########Stage 2: Grouping, Leveling, plotting, & Relabeling
+#note: sequence of original data levels should be considered when labeling and recoding levels 
+#[60] "V57: Marital status"
+Marital<-factor(mydata$Marital)
+summary(Marital)
+levels(Marital)<-c("Divorced"=0, "Living together as married"=1, "Married"=1,"Separated"=0,"Single"=0, "Widowed"=0)
+Marital_Labeled <- factor(Marital, levels = c(0,1), labels = c("Unmarried", "Married"))#
+summary(Marital_Labeled)
+Marital<- as.numeric(Marital)
+hist(Marital, freq = TRUE, labels = TRUE, nclass = 3, plot = TRUE)
+plot(Marital_Labeled, main="Marital Status")
+#Marital<- na.omit(Marital)# Do not delete NA's at this stage as it will affect the length of the vector
 
-# produced vignettes
-vignettes/*.html
-vignettes/*.pdf
+#[311] "V242: Age"
+Age<-factor(mydata$Age)
+summary(Age)
+levels(Age)<-c("30-49"=1, "50 and more"=1, "Up to 29"=0)
+Age_Labeled <- factor(Age, levels = c(0,1), labels = c("y30-","y30+"))
+summary(Age_Labeled)
+Age<-as.numeric(Age)
+hist(Age, freq = TRUE, labels = TRUE, nclass = 3, plot = TRUE)
+plot(Age_Labeled, main="Age")
+#Age<-na.omit(Age)
 
-# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
-.httr-oauth
 
-# knitr and R markdown default cache directories
-/*_cache/
-/cache/
+#[62] "V59: Satisfaction with financial situation of household"
+Eco_Satisfaction<-factor(mydata$Eco_Satisfaction)
+summary(Eco_Satisfaction)
+levels(Eco_Satisfaction)<-c("2"=0,"3"=0,"4"=0, "5"=0,"6"=1, "7"=1, "8"=1, "9"=1, "Completely dissatisfied"=0,   "Completely satisfied"=1, "Don´t know"=NA, "No answer; BH: Refused"=NA)
+Eco_Labeled <- factor(Eco_Satisfaction, levels = c(0,1), labels = c("Dissatisfied", "Satisfied"))
+summary(Eco_Labeled)
+Eco_Satisfaction<-as.numeric(Eco_Satisfaction)
+plot(Eco_Labeled, main="Economic Satisfaction")
+#Eco_Labeled<- na.omit(Eco_Labeled)
 
-# Temporary files created by R markdown
-*.utf8.md
-*.knit.md
 
-# Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
-rsconnect/
+#[99] "V95: Self positioning in political scale"
+Ideology<-factor(mydata$Ideology)
+summary(Ideology)
+levels(Ideology)<-c("2"=0, "3"=0, "4"=0, "5"=0,"6"=1, "7"=1, "8"=1, "9"=1, "Don´t know"=NA, "Left"=0, "No answer"=NA,"Right"=1)
+Ideology_Labeled <- factor(Ideology, levels = c(0,1), labels = c("Left", "Right"))
+summary(Ideology_Labeled)
+Ideology<-as.numeric(Ideology)
+plot(Ideology_Labeled, main = "Ideology")
+#Ideology<-na.omit(Ideology)
+
+
+#[166] "V145: How often do you attend religious services"
+Religiousity<-factor(mydata$Religiousity)
+summary(Religiousity)
+levels(Religiousity)<-c("Don´t know"=NA, "Less often"=0, "More than once a week"=1, "Never, practically never"=0, "No answer"=NA, "Once a month"=1, "Once a week"=1, "Once a year"=0, "Only on special holy days"=1)
+Religiousity_Labeled <- factor(Religiousity, levels = c(0,1), labels = c("Not Religious", "Religious"))
+summary(Religiousity_Labeled)
+Religiousity<-as.numeric(Religiousity)
+hist(Religiousity, freq = TRUE, labels = TRUE, nclass = 3, plot = TRUE)
+plot(Religiousity_Labeled, main="Religiousity")
+#Religiousity<-na.omit(Religiousity)
+
+
+#[285] "V228: Which party would you vote for if there were a national election tomorrow"
+#THE DEPENDENT VARIABLE (DICHOTOMUS)
+Voting<-factor(mydata$Voting)
+summary(Voting)
+levels(Voting)<-c('Don´t know'=NA, 'I would not vote'=NA, 'No answer'=NA, 'Other'=0,'TR: AKP - Justice and Development Party'=1, 'TR: BDP (independent candidates for BDP, "Peace and Democracy Party")'=0, 'TR: CHP - Republican Peoples Party'=0, 'TR: MHP - Nationalist Action Party -'=0)
+Voting_Labeled <- factor(Voting, levels = c(0,1), labels = c("Others", "AKP"))
+summary(Voting_Labeled)
+Voting<-as.numeric(Voting)
+plot(Voting_Labeled, main ="THE DEPENDENT VARIABLE (DICHOTOMUS)")
+#Voting<-na.omit(Voting)
+
+
+#[308] "V239: Scale of incomes"
+Income<-factor(mydata$Income)
+summary(Income)
+levels(Income)<-c("Don´t know"=NA,"Eigth step"=1, "Fifth step"=1, "Fourth step"=1, "Lower step"=0, "Nineth step"=1, "No answer"=NA, "second step"=0, "Seventh step"=1, "Sixth step"=1, "Tenth step"=1, "Third step"=0)
+Income_Labeled <- factor(Income, levels = c(0,1), labels = c("Low", "Middle-High"))
+summary(Income_Labeled)
+Income<-as.numeric(Income)
+plot(Income_Labeled, main = "Income")
+#Income_Labeled<-na.omit(Income_Labeled)
+
+
+#[309] "V240: Sex"
+Gender<-factor(mydata$Gender)
+summary(Gender)
+levels(Gender)<-c("Female"=0, "Male"=1)
+Gender_Label <- factor(Gender, levels = c(0,1), labels = c("F","M"))
+Gender<-as.numeric(Gender)
+plot(Gender_Label, main = "Gender")
+#
+
+
+#[318] "V247: Language/ethnicity"
+Ethnicity<-factor(mydata$Ethnicity)
+summary(Ethnicity)
+levels(Ethnicity)<-c("Kurdish"=0, "Other"=0, "Turkish"=1)
+Ethnicity_Labeled <- factor(Ethnicity, levels = c(0,1), labels = c("Other","Turkish"))
+Ethnicity<-as.numeric(Ethnicity)
+plot(Ethnicity_Labeled, main = "Ethnicity")
+#
+
+#[319] "V248: Highest educational level attained"
+Education<-factor(mydata$Education)
+summary(Education)
+levels(Education)<-c("Complete primary school"=0,"Complete secondary school: technical/ vocational type"=0,"Complete secondary school: university-preparatory type "=1,"Incomplete primary school"=0, "Incomplete secondary school: technical/ vocational type"=0,  "Incomplete secondary school: university-preparatory type"=1,  "No formal education"=0, "Some university-level education, without degree"=1, "University - level education, with degree"=1) 
+Education_Labeled <- factor(Education, levels = c(0,1), labels = c("Low-(College-)", "High-(College+)"))
+Education<-as.numeric(Education)
+plot(Education_Labeled, main = "Education")
+#
+
+#[329] "V256: Region where the interview was conducted"#
+Region<-factor(mydata$Region)
+summary(Region)
+levels(Region)<-c("TR: Aegean"=1,"TR: Central Anatolia"=1, "TR: East Central Anatolia"=0,"TR: Eastern Black Sea"=0, "TR: Eastern Marmara"=1,"TR: Istambul"=1,"TR: Mediterranean"=1,"TR: North Eastern Anatolia"=0, "TR: South Eastern Anatolia"=0, "TR: Western Anatolia"=1,"TR: Western Black Sea"=1, "TR: Western Marmara"=1)
+Region_Labeled <- factor(Region, levels = c(0,1), labels = c("Easter", "Western"))
+summary(Region_Labeled)
+Region<-as.numeric(Region)
+plot(Region_Labeled, main = "Region")
+
+Binary_Logistic_Data<-data.frame(Voting,Religiousity, Ideology, Eco_Satisfaction, Marital, Income, Gender,Age,Ethnicity,Education, Region)
+head(Binary_Logistic_Data)
+
+
+write_xlsx(Binary_Logistic_Data, "C:/Users/ramsey/Desktop/Metro College/R/Project/Binary_Logistic_Data.xlsx")
+
+
+
+##### To check all variables correlations, it is better to run a regression model 
+
+CAT_regression<- lm(Voting~Religiousity+Ideology+Eco_Satisfaction+Age+Income+Education+Gender+Ethnicity+Region+Marital, data = model1)
+summary(CAT_regression)
+
+model1<-na.omit(Categorized_Data)
+head(model1)
+View(model1)
+####omitting the NA's has no signficance as NA values in this model are meaningless due to the hypothesis and research path
+
+#####
+
+CAT_regression_Re<- lm(Voting~Religiousity_2nd+Ideology+Eco_Satisfaction+Age+Income+Education+Gender+Ethnicity+Region+Marital, data = Categorized_Data)
+summary(CAT_regression_Re)
+
+####
+
+#########Logistic Regression #### the log of the odds to vote for AKP party 
+
+Logistic_regression<- glm(Voting~Religiousity+Ideology+Eco_Satisfaction+Age+Income+Education+Gender+Ethnicity+Region+Marital, data = Binary_Logistic_Data, binomial)
+summary(Logistic_regression)
+
+Logistic_regression_Labeled<- glm(Voting_Labeled~Religiousity_Labeled+Ideology_Labeled+Age_Labeled+Income_Labeled+Education_Labeled+Gender_Label+Ethnicity+Region_Labeled+Marital_Labeled, data = Binary_Logistic_Data, binomial)
+summary(Logistic_regression_Labeled)
+
+
+glm.diag.plots(Logistic_regression_Labeled, glmdiag = glm.diag(Logistic_regression_Labeled), subset = NULL,
+               iden = FALSE, labels = NULL, ret = FALSE)
+
+Anova<- anova(Logistic_regression_Labeled, test="Chisq", na.omit)
+summary(Anova)
+#require(pscl)
+pR2(Logistic_regression_Labeled)
+
+
+data.test<-Binary_Logistic_Data[,c("Voting","Religiousity", "Ideology", "Eco_Satisfaction", "Marital", "Income", "Gender","Age","Ethnicity","Education", "Region")]
+
+library(ROCR)
+p <- predict(Logistic_regression_Labeled, newdata=subset(data.test,select=c("Voting","Religiousity", "Ideology", "Marital", "Income","Age","Ethnicity","Education", "Region")), type="response")
+pr <- prediction(p, data.test)
+summary(p)
+fitted.results <- ifelse(p > 0.5,1,0)
+misClasificError <- mean(fitted.results != data.test$Voting, na.rm=TRUE)
+print(paste('Accuracy',1-misClasificError))
+
